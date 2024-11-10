@@ -6,7 +6,8 @@
 		application_state = {
 			current_pane: 'login',
 			username: 'username',
-			password: 'password'
+			password: 'password',
+			current_number: 'none'
 		};
 		
 		function switch_pane(target_pane) {
@@ -18,6 +19,7 @@
 			}
 			document.getElementById(application_state.current_pane).style = "visibility: hidden;";
 			p.style = "visibility: shown;";
+			application_state.current_pane = target_pane;
 		}
 		
 		async function attempt_connection() {
@@ -33,11 +35,46 @@
 			return login_trial.status == 200;
 		}
 
+		async function get_call_info() {
+			const info = await fetch("http://localhost:8000/get_call_info()");
+			if (info.statusText == "All clear") {
+				switch_pane("congrats");
+			} else {
+				console.log(info.statusText);
+				let state = 0;
+				let buffer = "";
+				for (c of info.statusText) {
+					if (c == ',') {
+						if (state == 0) {
+							document.getElementById("name").innerText = "Prénom : " + buffer;
+						} else if (state == 1) {
+							document.getElementById("surname").innerText = "Nom : " + buffer;
+						} else if (state == 2) {
+							document.getElementById("number").innerText = "Numéro : " + buffer;
+							application_state.current_number = buffer;
+						}
+						buffer = "";
+						state += 1;
+						if (state == 3) {break;}
+					} else {
+						buffer += c;
+					}
+				}
+			}
+		}
+
 		async function login() {
 			if (await attempt_connection()) {
 				switch_pane('application');
+				get_call_info();
 			}
 		}
+
+		async function call_later() {
+			await fetch("http://localhost:8000/call_later(" + application_state.current_number + ")");
+			get_call_info();
+		}
+
 	</script>
 	<noscript>
 		Veuillez utiliser un navigateur qui supporte le JavaScript (btw on est en 2024, il s'agirait de se mettre à jour).
@@ -54,16 +91,19 @@
 		</button>
 		<p id="wrong_cred" style="visibility: hidden;">Identifiant ou mot de passe incorrecte</p>
 	</div>
+	<div id='congrats' style="visibility: hidden;">
+		<h1>Tous les numéros ont été appelés !</h1>
+	</div>
 	<div id='application' style='visibility: hidden;'>
 		<div id='infos'>
 			<p id='name'>Prénom: Jean</p>
 			<p id='surname'>Nom: Dupont</p>
-			<p id='numéro'>Tél: 06 00 00 00 00</p>
+			<p id='number'>Tél: 06 00 00 00 00</p>
 		</div>
 
 		<div id='actions'>
-			<button id='responded'>A répondu</button>
-			<button id='no answer'>N'a pas répondu</button>
+			<button id='responded' onclick="get_call_info()">A répondu</button>
+			<button id='no answer' onclick="call_later()">N'a pas répondu</button>
 			<button id='do not call'>Ne souhaite plus être appelé</button>
 		</div>
 	</div>

@@ -3,20 +3,26 @@ use std::io::BufRead;
 use std::net::TcpListener;
 use std::net::TcpStream;
 use std::io::BufReader;
+use oracle::{Connection, Error};
+
 
 fn main() {
     println!("Démarrage du serveur...");
+    
+    let database = Connection::connect("pirate_phone", "bananes", "")
+                            .expect("Impossible de se connecter à la BDD");
+
     let listener = TcpListener::bind("localhost:8000")
                                 .expect("Impossible d'écouter sur le port 8000");
 
     println!("Serveur démarré.");
     for stream in listener.incoming() {
         let stream = stream.unwrap();
-        handle_request(stream);
+        handle_request(stream, &database);
     }
 }
 
-fn handle_request(mut stream: TcpStream) {
+fn handle_request(mut stream: TcpStream, database: &Connection) {
     let reader = BufReader::new(&mut stream);
     let request = reader.lines()
                         .map(|x| x.unwrap())
@@ -27,16 +33,92 @@ fn handle_request(mut stream: TcpStream) {
     let mut answer = match parse_function(request) {
         Err(e) => format!("HTTP/1.1 400 {:?}", e),
         Ok(f) => {
-            if f.arguments[1] == "banane" {
-                String::from("HTTP/1.1 200 OK")
-            } else {
-                String::from("HTTP/1.1 401 Wrong password")
+            match f.name.as_str() {
+                "connect" => {
+                    if login(&f.arguments[0], &f.arguments[1]) {
+                        String::from("HTTP/1.1 200 OK")
+                    } else {
+                        String::from("HTTP/1.1 401 Wrong password")
+                    }
+                },
+                "call_later" => {
+
+                    let mut num = String::new();
+                    let mut should_skip = 0;
+                    for i in 0..f.arguments[0].len() {
+                        if should_skip != 0{
+                            should_skip -= 1;
+                            continue;
+                        }
+                        if &f.arguments[0][i..i+1] == "%" {
+                            should_skip = 2;
+                            num.push(' ');
+                        } else {
+                            num.push_str(&f.arguments[0][i..i+1]);
+                        }
+                    }
+
+                    println!("'{}'", num);
+                    let r = database.execute(
+                        &format!(
+                            "update Contact set to_call=1 where numero = '{}'",
+                            num
+                        ),
+                        &[]
+                    );
+
+                    if let Err(e) = r { 
+                        println!("Error while resetting to_call : {e:#?}.");
+                    } 
+
+                    database.commit().expect("Error while commiting");
+
+                    String::from("HTTP/1.1 200 OK")
+                }
+                "get_call_info" => {
+                    let sql = "select nom, prenom, numero from Contact where numero = get_call_info";
+                    
+                    match database.query(sql, &[]) {
+                        Ok(rows) => match rows.last() {
+                            Some(row) => {
+                                let row = row.unwrap(); 
+                                let nom: String = row.get("nom").unwrap();
+                                let prenom: String = row.get("prenom").unwrap();
+                                let numero: String = row.get("numero").unwrap();
+
+                                if let Err(e) =  database.execute(&format!("call touch_call_info('{numero}')"), &[]) {
+                                    println!("Error while touching call info : {e:#?}.");
+                                }
+                                if let Err(_) = database.commit() {
+                                    println!("Error while committing.");
+                                }
+
+                                format!("HTTP/1.1 200 {nom},{prenom},{numero},")
+                            },
+                            None => {
+                                println!("No row selected.");
+                                String::from("HTTP/1.1 200 All clear")
+                            }
+                        },
+                        Err(e) => {
+                            println!("Error in query : {e:#?}");
+                            String::from("HTTP/1.1 200 All clear")
+                        }
+                    }
+                },
+                _ => {
+                    String::from("HTTP/1.1 400 Unknown function")
+                }
             }
         }
     };
 
     answer.push_str("\r\nAccess-Control-Allow-Origin: *\r\n");
     stream.write_all(answer.as_bytes()).unwrap();
+}
+
+fn login(username: &str, password: &str) -> bool {
+    password == "alba" 
 }
 
 fn parse_function(request: Vec::<String>) -> Result<FunctionCall, FunctionParsingError> {

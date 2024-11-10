@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<head>
+	<meta charset='utf-8'/>
+	<title>UEY Phone</title>
+	<script type='text/javascript'>
+		application_state = {
+			current_pane: 'login',
+			username: 'username',
+			password: 'password'
+		};
+		
+		function switch_pane(target_pane) {
+			const p = document.getElementById(target_pane);
+			if (p == null) {
+				console.log("No such pane in application :");
+				console.log(target_pane);
+				return;
+			}
+			document.getElementById(application_state.current_pane).style = "visibility: hidden;";
+			p.style = "visibility: shown;";
+		}
+		
+		async function attempt_connection() {
+			application_state.username = document.getElementById("username").value;
+			application_state.password = document.getElementById("password").value;
+
+			const login_trial = await fetch("http://localhost:8000/connect(" + application_state.username + "," + application_state.password+ ")");
+
+			if (login_trial.status == 401) {
+				document.getElementById("wrong_cred").style = "visibility: shown;color: red;";
+			}
+			console.log(login_trial.status == 200);
+			return login_trial.status == 200;
+		}
+
+		async function login() {
+			if (await attempt_connection()) {
+				switch_pane('application');
+			}
+		}
+	</script>
+	<noscript>
+		Veuillez utiliser un navigateur qui supporte le JavaScript (btw on est en 2024, il s'agirait de se mettre à jour).
+	</noscript>
+</head>
+
+<body>
+	<h1>UEY Phone</h1>
+	<div id='login'>
+		<input id='username' placeholder="Nom d'utilisateur"/>
+		<input id='password' type='password' placeholder='Mot de passe'/>
+		<button id='login' onclick="login()">
+			Se connecter
+		</button>
+		<p id="wrong_cred" style="visibility: hidden;">Identifiant ou mot de passe incorrecte</p>
+	</div>
+	<div id='application' style='visibility: hidden;'>
+		<div id='infos'>
+			<p id='name'>Prénom: Jean</p>
+			<p id='surname'>Nom: Dupont</p>
+			<p id='numéro'>Tél: 06 00 00 00 00</p>
+		</div>
+
+		<div id='actions'>
+			<button id='responded'>A répondu</button>
+			<button id='no answer'>N'a pas répondu</button>
+			<button id='do not call'>Ne souhaite plus être appelé</button>
+		</div>
+	</div>
+
+</body>

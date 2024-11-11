@@ -9,6 +9,7 @@ BEGIN
 	from
 		Contact c
 	where
+		rownum = 1 and
 		c.to_call = 1 and
 		not exists (
 			select
@@ -17,7 +18,8 @@ BEGIN
 				Contact cc
 			where
 				cc.to_call = 1 and
-				cc.last_call <= c.last_call
+				cc.last_call < c.last_call and
+				cc.numero != c.numero
 		);
 
 	return num;

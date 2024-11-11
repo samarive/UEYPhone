@@ -7,7 +7,8 @@
 			current_pane: 'login',
 			username: 'username',
 			password: 'password',
-			current_number: 'none'
+			current_number: 'none',
+			token: 'none'
 		};
 		
 		function switch_pane(target_pane) {
@@ -31,16 +32,22 @@
 			if (login_trial.status == 401) {
 				document.getElementById("wrong_cred").style = "visibility: shown;color: red;";
 			}
-			console.log(login_trial.status == 200);
-			return login_trial.status == 200;
+
+			if (login_trial.status == 200) {
+
+				application_state.token = login_trial.statusText;
+				
+				return true;
+			} else {
+				return false;
+			}
 		}
 
 		async function get_call_info() {
-			const info = await fetch("http://localhost:8000/get_call_info()");
+			const info = await fetch("http://localhost:8000/get_call_info(" + application_state.token + ")");
 			if (info.statusText == "All clear") {
 				switch_pane("congrats");
-			} else {
-				console.log(info.statusText);
+			} else if (info.status == 200) {
 				let state = 0;
 				let buffer = "";
 				for (c of info.statusText) {
@@ -60,6 +67,12 @@
 						buffer += c;
 					}
 				}
+			} else {
+				switch_pane('login');
+				application_state.username = 'username';
+				application_state.password = 'password';
+				application_state.current_number = 'none';
+				application_state.token = 'none';
 			}
 		}
 
@@ -71,7 +84,8 @@
 		}
 
 		async function call_later() {
-			await fetch("http://localhost:8000/call_later(" + application_state.current_number + ")");
+			await fetch("http://localhost:8000/call_later(" + application_state.current_number + "," +
+				application_state.token + ")");
 			get_call_info();
 		}
 

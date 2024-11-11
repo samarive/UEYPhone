@@ -36,7 +36,8 @@
 			if (login_trial.status == 200) {
 
 				application_state.token = login_trial.statusText;
-				
+				document.getElementById("password").value = "";
+
 				return true;
 			} else {
 				return false;
@@ -73,6 +74,7 @@
 				application_state.password = 'password';
 				application_state.current_number = 'none';
 				application_state.token = 'none';
+				document.getElementById("invalid token").style = "visibility: shown;color: red;";
 			}
 		}
 
@@ -104,10 +106,12 @@
 			Se connecter
 		</button>
 		<p id="wrong_cred" style="visibility: hidden;">Identifiant ou mot de passe incorrecte</p>
+		<p id="invalid token" style="visibility: hidden;">Session invalide ou expirée, veuillez vous reconnecter.</p>
 	</div>
 	<div id='congrats' style="visibility: hidden;">
 		<h1>Tous les numéros ont été appelés !</h1>
 	</div>
+
 	<div id='application' style='visibility: hidden;'>
 		<div id='infos'>
 			<p id='name'>Prénom: Jean</p>
@@ -118,7 +122,7 @@
 		<div id='actions'>
 			<button id='responded' onclick="get_call_info()">A répondu</button>
 			<button id='no answer' onclick="call_later()">N'a pas répondu</button>
-			<button id='do not call'>Ne souhaite plus être appelé</button>
+			<button id='do not call' onclick="get_call_info()">Ne souhaite plus être appelé</button>
 		</div>
 	</div>
 

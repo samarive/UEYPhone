@@ -178,7 +178,7 @@ fn parse_function(request: Vec::<String>) -> Result<FunctionCall, FunctionParsin
 }
 
 fn is_token_valid(token: &String, l: &Vec::<Token>) -> bool {
-    l.iter().map(|x| x.value()).collect::<Vec<String>>().contains(token)
+    l.iter().filter_map(|x| if x.is_valid() {Some(x.value())} else {None}).collect::<Vec<String>>().contains(token)
 }
 
 struct Token {
@@ -187,7 +187,7 @@ struct Token {
 }
 impl Token {
 
-    const VALID_FOR: u64 = 30;
+    const VALID_FOR: u64 = 10;
 
     fn new() -> Self {
         Self {
@@ -200,8 +200,8 @@ impl Token {
         }
     }
 
-    fn is_valid(&self) {
-        self.creation.elapsed().as_secs() / 60 < Self::VALID_FOR;
+    fn is_valid(&self) -> bool{
+        self.creation.elapsed().as_secs() / 60 < Self::VALID_FOR
     }
 
     fn value(&self) -> String {
